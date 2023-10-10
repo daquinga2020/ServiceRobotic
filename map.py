@@ -58,7 +58,7 @@ def find_cell(cells, px_find, py_find, size_cell_x, size_cell_y):
     for cell in cells:
         x_corner, y_corner = cell
         if px_find >= x_corner and px_find < x_corner + size_cell_x and py_find >= y_corner and py_find < y_corner + size_cell_y:
-            cells.remove(cell)
+            # cells.remove(cell)
             return (x_corner, y_corner)
 
     return None
@@ -148,7 +148,6 @@ y_start = 562
 # Una vez sabemos en que pixel se cree que esta, definir en que
 # celdilla se encuentra.
 start_cell = find_cell(free_cells, x_start, y_start, cell_x, cell_y)
-fill_cell(map_erosion, start_cell[0], start_cell[1], cell_x, cell_y, 210)
 
 # Una vez localizado al robot en la celdilla se procede a crear el path
 # para recorrer todas las celdillas de la casa.
@@ -178,37 +177,69 @@ fill_cell(map_erosion, start_cell[0], start_cell[1], cell_x, cell_y, 210)
 cv2.namedWindow('MAP IN REAL TIME', cv2.WINDOW_NORMAL)
 
 return_points = []
-visited_cells = [start_cell] # Lista para guardar celdillas visitadas
+visited_cells = [] # Lista para guardar celdillas visitadas y ruta para limpiar
 
 current_cell = start_cell
+vuelta = 0
 # Seguir avanzando mientras hayan celdillas sin limpiar
 while len(free_cells) != 0:
     
+    fill_cell(map_erosion, current_cell[0], current_cell[1], cell_x, cell_y, color_visited)
     neighbors = get_neighbors_cells(free_cells, current_cell, cell_x, cell_y)
-
+    last_cell = current_cell
     # El primer vecino que haya es el movimiento que se va a realizar, el resto son
     # considerados puntos de retorno. Si no hay vecinos nos encontramos en un punto critico
     # y se procede a buscar el punto de retorno mas cercano.
     
     if len(neighbors) != 0:
-        current_cell = neighbors[0][0]
+        
+        # fill_cell(map_erosion, neighbors[0][0][0], neighbors[0][0][1], cell_x, cell_y, color_retrpnts)
+        next_cell = neighbors[0][0]
+        # Eliminar la celda en la que estamos de las celdas libres y añadirla al camino
         free_cells.remove(current_cell)
         visited_cells.append(current_cell)
-        neighbors.pop(0)
-        # Si la celda actual en la que estoy era un vecino, se actualiza la lista de puntos de retorno
+        
+        # Si la celda actual en la que estoy era un punto de retorno, se actualiza la lista de puntos de retorno
         if current_cell in return_points:
             return_points.remove(current_cell)
-        fill_cell(map_erosion, current_cell[0], current_cell[1], cell_x, cell_y, color_visited)
-        
+
+        # Guardamos los vecinos como posibles puntos de retorno
         for cell_ngh in neighbors:
-            if cell_ngh not in return_points:
-                return_points = return_points + [cell_ngh[0]]
+            if cell_ngh[0] not in return_points and cell_ngh[0] in free_cells:
+                # if neighbors.index(cell_ngh) == 0:
+                #     current_cell = cell_ngh[0]
+                return_points.append(cell_ngh[0])
+                print("VECINO DE", current_cell, ":", cell_ngh)
                 fill_cell(map_erosion, cell_ngh[0][0], cell_ngh[0][1], cell_x, cell_y, color_retrpnts)
+        
+        # Coger la siguiente celdilla a la que ir
+        current_cell = next_cell
     else:
-        print("SALGO")
-        fill_cell(map_erosion, current_cell[0], current_cell[1], cell_x, cell_y, 0)
-        # Se procederia a buscar un punto de retorno donde volver a empezar
+        vuelta += 1
+        # Mientras haya puntos de retorno seguir recorriendo
+        # if len(return_points) == 0:
+        #     cv2.imshow('MAP IN REAL TIME', map_erosion)
+        #     break
+        # else:
+        # Aqui iria el algoritmo para la busqueda del punto mas cercano
+        if current_cell == return_points[-1]:
+            return_points.remove(current_cell)
+        
+        if len(return_points) == 0:
+            cv2.imshow('MAP IN REAL TIME', map_erosion)
+            break
+        else:
+            current_cell = return_points[-1]
     
+        print("Numero de puntos criticos: ", vuelta, " - Puntos de Retorno: ", return_points)
+        
+        # if vuelta > 21:
+        #     fill_cell(map_erosion, current_cell[0], current_cell[1], cell_x, cell_y, 60)
+        #     cv2.imshow('MAP IN REAL TIME', map_erosion)
+        #     time.sleep(2)
+        # cv2.imshow('MAP IN REAL TIME', map_erosion)
+        # Se procederia a buscar un punto de retorno donde volver a empezar
+    print("")
     cv2.imshow('MAP IN REAL TIME', map_erosion)
     cv2.waitKey(10) # 80 buen tiempo
     
