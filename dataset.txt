@@ -16,3 +16,16 @@ Linear regression model:
     y ~ 1 + x1 + x2
     x1 = 412.64
     x2 = 99.373
+
+
+Para x de pixel a x de gazebo:
+Linear regression model:
+    y ~ 1 + x1 + x2
+    x1 = 5.6697
+    x2 = -0.0099174
+
+Para y de pixel a y de gazebo:
+Linear regression model:
+    y ~ 1 + x1 + x2
+    x1 = -4.1493
+    x2 = 0.010058
