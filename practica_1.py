@@ -1,7 +1,11 @@
+import queue
+import time
+from GUI import GUI
+from HAL import HAL
 import numpy as np
 import cv2
-import queue
 import math
+# Enter sequential code!
 
 def draw_grid(img, hight, width, size_cell_x, size_cell_y):
     
@@ -13,7 +17,7 @@ def draw_grid(img, hight, width, size_cell_x, size_cell_y):
     # Lineas verticales - Altura fija y anchura variable
     for i in range(0, width, size_cell_x):
         cv2.line(img, (i, 0), (i, hight), (0, 0, 0), 1)
-        
+
 
 def check_obs(img, px, py, size_cell_x, size_cell_y):
     
@@ -54,6 +58,7 @@ def fill_cell(img, px, py, size_cell_x, size_cell_y, color):
 
 
 def find_cell(cells, px_find, py_find, size_cell_x, size_cell_y):
+  
     # Función para encontrar la celda a la que pertenecen las coordenadas
     for cell in cells:
         x_corner, y_corner = cell
@@ -109,6 +114,7 @@ def get_pixel_center(cell, size_cell_x, size_cell_y):
     
     return (mean_x, mean_y)
 
+
 def search_path2rtrnpnt(critical_point, goal_cell, f_cells, size_cell_x, size_cell_y):
     
     frontier_points = queue.PriorityQueue() # Cola para guardar celdillas
@@ -149,32 +155,30 @@ def search_path2rtrnpnt(critical_point, goal_cell, f_cells, size_cell_x, size_ce
 
 def find_path(map, start, f_cells, size_cell_x, size_cell_y):
     
-    color_visited = 220
-    color_retrpnts = 100
-
+    # color_visited = 220
+    # color_retrpnts = 100
 
     return_points = []
     vstd_cells = [] # Lista para guardar celdillas visitadas y ruta para limpiar
     directions = []
     current_direction = ""
     last_direction = ""
+    
     current_cell = start
     cop_f_cells = f_cells.copy()
     # Seguir avanzando mientras hayan celdillas sin limpiar
 
     while len(f_cells) != 0:
         
-        fill_cell(map, current_cell[0], current_cell[1], size_cell_x, size_cell_y, color_visited)
         neighbors = get_neighbors_cells(f_cells, current_cell, size_cell_x, size_cell_y)
         
         # Eliminar la celda en la que estamos de las celdas libres y añadirla al camino
         f_cells.remove(current_cell)
         center_pxl_cell = get_pixel_center(current_cell, size_cell_x, size_cell_y)
-        vstd_cells.append(center_pxl_cell) # Cambiar por pixel center
+        vstd_cells.append(center_pxl_cell)
         if len(vstd_cells) > 1:
             directions.append(current_direction)
-        print(center_pxl_cell, current_direction)
-        print("")
+        
         # Si la celda actual en la que estoy era un punto de retorno, se actualiza la lista de puntos de retorno
         if current_cell in return_points:
             return_points.remove(current_cell)
@@ -192,7 +196,6 @@ def find_path(map, start, f_cells, size_cell_x, size_cell_y):
                 if cell_ngh[0] not in return_points and cell_ngh[0] in f_cells:
                     return_points.append(cell_ngh[0])
                     last_direction = cell_ngh[1]
-                    fill_cell(map, cell_ngh[0][0], cell_ngh[0][1], size_cell_x, size_cell_y, color_retrpnts)
             
             # Coger la siguiente celdilla a la que ir
             current_cell = next_cell
@@ -216,11 +219,10 @@ def find_path(map, start, f_cells, size_cell_x, size_cell_y):
                 vstd_cells = vstd_cells + temp_pth_return_point
                 directions = directions + pth_directions
                 current_cell = return_points[-1]
-
-        cv2.imshow('MAP', map)
-        cv2.waitKey(1) # 80 buen tiempo
         
     return vstd_cells, directions
+
+    
 
 def absolute2relative (x_abs, y_abs, robotx, roboty, robott):
     # robotx, roboty are the absolute coordinates of the robot
@@ -235,221 +237,6 @@ def absolute2relative (x_abs, y_abs, robotx, roboty, robott):
 
     return x_rel, y_rel
 
-'''def navigate(path, reached):
-
-    v = 2.5
-    local_reached = True
-    ind = 0
-    
-    while not reached:
-        rob_x = HAL.getPose3d().x
-        rob_y = HAL.getPose3d().y
-        theta_rob = HAL.getPose3d().yaw
-
-        # Si se ha alcanzado la meta local, actualizar a la siguiente meta
-        if local_reached:
-            ind += 4
-            local_reached = False
-
-        if ind >= len(path)-1:
-            ind = len(path)-1
-        
-        x_abs, y_abs = path[ind][0], path[ind][1]
-        goalx, goaly = absolute2relative(x_abs, y_abs, rob_x, rob_y, theta_rob)
-        
-        module_goal = math.sqrt(goalx**2 + goaly**2)
-
-        if module_goal <= 1.5:
-            local_reached = True
-            if ind == len(path)-1:
-                reached = True
-                HAL.setV(0)
-                HAL.setW(0)
-                break
-
-        w = math.atan2(goaly, goalx)
-        if math.fabs(w) <= 0.05:
-            w = 0
-            if v <= 4:
-                v += 0.5
-        else:
-            v = 2.5
-
-        HAL.setV(v)
-        HAL.setW(w)
-'''
-
-cv2.namedWindow('MAP', cv2.WINDOW_NORMAL)
-
-map_img = cv2.imread('mapgrannyannie.png', 0) # Leer la imagen
-h, w = map_img.shape
-# IMAGEN ALTURA: 1012 ANCHO 1013; img[fila][columna]
-
-# First step: apply erosion function on the map image to dilate obstacles on the map
-
-# Se aplica erosion, una operacion morfologica, a la imagen del mapa y asi dilatar los obstaculos
-kernel = np.ones((4,4), np.uint8)
-
-# The first parameter is the original image,
-# kernel is the matrix with which image is
-# convolved and third parameter is the number
-# of iterations, which will determine how much
-# you want to erode/dilate a given image.
-map_erosion = cv2.erode(map_img, kernel, iterations=12)
-
-# Utilizar celdillas de 32x32 o 36x36, con 28 parece rellenar bastantes sitios
-cell_x = 18
-cell_y = 18
-
-draw_grid(map_erosion, h, w, cell_x, cell_y)
-
-# Guardar las celdillas libres fuera de obstaculos
-# Luego ubicar a nuestro robot en cual de esas celdillas esta.
-free_cells = save_free_cells(map_erosion, h, w, cell_x, cell_y)
-
-# Luego ubicar a nuestro robot en cual de esas celdillas del mapa esta.
-# Para localizar al robot en el mapa se tomaran puntos conocidos en el mundo de Gazebo
-# y se relacionaran con los pixeles del mapa, posteriormente se emplea un script en matlab
-# con el que hallaremos un modelo de regresion lineal, obteniendo de esta manera la posicion del robot este donde este.
-
-# Obtener la posicion del robot inicial
-x0_rob = -1 # Si se avanza a la izquierda se suma en pos
-y0_rob = 1.5 # Si se avanza a la izquierda se suma en pos
-yaw0_rob = 0 #-3.77
-# 1290
-
-# Prediccion obtenida del modelo de regresion lineal
-x_start = 679
-y_start = 577
-
-# Una vez sabemos en que pixel se cree que esta, definir en que
-# celdilla se encuentra.
-start_cell = find_cell(free_cells, x_start, y_start, cell_x, cell_y)
-
-# Una vez localizado al robot en la celdilla se procede a crear el path
-# para recorrer todas las celdillas de la casa.
-# Prioridad para avanzar, Norte, Este, Sur, Oeste
-
-# Diferenciar en el mapa los Obstaculos(0), Obstaculos virtuales(celdas ya visitadas por el robot,c=210),
-# Puntos de Retorno(Puntos de inicio para comenzar a limpiar de nuevo, 240) y Puntos Criticos(Puntos donde
-# el robot se queda atascado entre obstaculos y obstaculos virtuales).
-
-# Para trazar el path se empleara el algoritmo de busqueda en coste uniforme.
-# Los puntos de retorno serám comprobados mientras que el robot se encuentra en movimiento. 
-# Las celdas vacias se clasificaran como puntos de retorno. La lista de los puntos ha de ser actualizda continuamente.
-
-# Los puntos criticos seran clasificados cuando el robot este atascado entre obstaculos o obstaculos virtuales y no se pueda mover.
-
-# Para comprbar la llegada de la celda se consideraran varios offsets de errores en el mundo real. La llegada del robot deberia
-# ser considerada con un pequeño margen de error, de la otra manera el robot comenzaria a oscilar.
-
-# Algoritmo BSA
-# Ira fuera del bucle while
-# Obtener las celdillas vecinas de la celdilla actual y avanzar al norte si es posible.
-
-cop = free_cells.copy()
-visited_cells, dirs = find_path(map_erosion, start_cell, free_cells, cell_x, cell_y)
-visited_cells.pop(0)
-print(len(visited_cells), len(dirs))
-for i in range(len(visited_cells)):
-    print(visited_cells[i], dirs[i])
-
-# fill_cell(map_erosion, start_cell[0], start_cell[1], cell_x, cell_y, 100)
-# pr_pth = search_path2rtrnpnt(start_cell, (936, 558), cop, cell_x, cell_y)
-
-# for i in pr_pth:
-#     fill_cell(map_erosion, i[0], i[1], cell_x, cell_y, 200)
-#     cv2.imshow('MAP', map_erosion)
-#     cv2.waitKey(1000)
-
-
-
-# Se avanzan 3 al norte: (674.5, 566.5), (674.5, 548.5), (674.5, 530.5),
-# print(visited_cells)
-# x, y = 810, 954
-# fill_cell(map_erosion, x, y, cell_x, cell_y, 200)
-# cv2.imshow('MAP', map_erosion)
-
-# x_map = [936, 936, 702, 576, 504, 342, 126, 72, 72, 234, 216, 72, 72, 72, 810]
-# y_map = [558, 342, 342, 342, 342, 144, 144, 108, 540, 540, 792, 792, 918, 954, 954]
-# a = []
-# for x, y in zip(x_map, y_map):
-#     a.append(get_pixel_center((x,y), cell_x, cell_y))
-# print(a)
-# Transformar las coordenadas de pixeles en coordenadas del mundo Gazebo
-'''
-# Pesos para x_gz a x_pixel
-X_gz2pxl_x1 = 571.65
-X_gz2pxl_x2 = -100.81
-
-# Pesos para y_gz a y_pixel
-Y_gz2pxl_x1 = 412.64
-Y_gz2pxl_x2 = 99.373
-
-# Modelo de regresion lineal para x_gz a x_pixel
-# x_pixel = X_x1 + X_x2*x_gz
-
-# Modelo de regresion lineal para y_gz a y_pixel
-# y_pixel = Y_x1 + Y_x2*y_gz
-
-
-# Pesos para x_pixel a x_gz
-X_pxl2gz_x1 = 5.6697
-X_pxl2gz_x2 = -0.0099174
-# Pesos para y_pixel a y_gz
-Y_pxl2gz_x1 = -4.1493
-Y_pxl2gz_x2 = 0.010058
-
-# Modelo de regresion lineal para x_gz a x_pixel
-# x_pixel = X_x1 + X_x2*x_gz
-
-# Modelo de regresion lineal para y_gz a y_pixel
-# y_pixel = Y_x1 + Y_x2*y_gz
-
-gz_pth = []
-
-for i in range(len(visited_cells)):
-    x_gz = round(X_pxl2gz_x1 + X_pxl2gz_x2*visited_cells[i][0], 3)
-    y_gz = round(Y_pxl2gz_x1 + Y_pxl2gz_x2*visited_cells[i][1], 3)
-    gz_pth.append((x_gz, y_gz))
-    print("Coordenada en pixel: ", visited_cells[i], " -> Coordenada en gazebo: ", (x_gz, y_gz), "DIR:", dirs[i])
-'''
-
-'''def turn(dir):
-    
-    alineated = False
-    current_dir = 0
-    err = 0.002
-    
-    while not alineated:
-        
-        if dir == "North":
-            orientation = round(-math.pi/2, 3)
-        elif dir == "East":
-            orientation = round(-math.pi, 3)
-        elif dir == "South":
-            orientation = round(math.pi/2, 3)
-        else:
-            orientation = 0.0
-
-        difference = orientation - current_dir
-        
-        if -err <= difference <= err:
-            HAL.setW(0.5)
-            alineated = True'''
-
-# x0_rob = -1 # Si se avanza a la izquierda se suma en pos
-# y0_rob = 1.5 # Si se avanza a la izquierda se suma en pos
-# yaw0_rob = 0 #-3.77
-
-# Primitivas de movimiento:
-# Orientacion inicial -> 0 mirando a la izquierda, oeste.
-# -1.5 -> mirando hacia arriba norte
-# -3.14 -> mirando hacia derecha este
-# 1.5 -> mirando hacia abajo sur
-# W+ -> giro derecha
-
-
 def convert_pxls2gz(coords_pxls, X_pxl2gz, Y_pxl2gz):
     
     coords_gz = []
@@ -463,7 +250,6 @@ def convert_pxls2gz(coords_pxls, X_pxl2gz, Y_pxl2gz):
 
 def get_local_goal(path, index, n_points_skip):
     
-    local_goal = path[index]
     max_index = min(index + n_points_skip, len(path))
     local_goal = path[min(index, len(path))]
     x_start = path[index][0]
@@ -477,6 +263,48 @@ def get_local_goal(path, index, n_points_skip):
     
     return new_index, local_goal
 
+def turn(dir, robott):
+    
+    if dir == "North":
+        desire_dir = -math.pi/2
+    elif dir == "East":
+        # Puede ser pi o -pi
+        if robott < 0:
+            desire_dir = -math.pi
+        else:
+            desire_dir = math.pi
+    elif dir == "South":
+        desire_dir = math.pi/2
+    elif dir == "West":
+        desire_dir = 0.0
+    
+    error = round(robott - desire_dir, 4)
+    
+    return error
+
+
+map_img = cv2.imread('RoboticsAcademy/exercises/static/exercises/vacuum_cleaner_loc/resources/images/mapgrannyannie.png', 0) # Leer la imagen
+h, w = map_img.shape
+
+# Se aplica erosion, una operacion morfologica, a la imagen del mapa y asi dilatar los obstaculos
+kernel = np.ones((4,4), np.uint8)
+
+map_erosion = cv2.erode(map_img, kernel, iterations=12)
+
+cell_x = 18
+cell_y = 18
+
+draw_grid(map_erosion, h, w, cell_x, cell_y)
+
+# Guardar las celdillas libres fuera de obstaculos
+# Luego ubicar a nuestro robot en cual de esas celdillas esta.
+free_cells = save_free_cells(map_erosion, h, w, cell_x, cell_y)
+time.sleep(4)
+x0_rob = HAL.getPose3d().x # Si se avanza a la izquierda se suma en pos
+y0_rob = HAL.getPose3d().y
+yaw0_rob = HAL.getPose3d().yaw
+print("Posicion Inicial: ", (x0_rob, y0_rob))
+time.sleep(1)
 # Pesos de Gazebo a Pixel
 # Pesos para x_pixel a x_gz
 X_gz2pxl_x1 = 582.24
@@ -493,31 +321,143 @@ X_pxl2gz_x2 = -0.010269
 # Pesos para y_pixel a y_gz
 Y_pxl2gz_x1 = -4.4614
 Y_pxl2gz_x2 = 0.010324
-'''
+
+
+# Prediccion obtenida del modelo de regresion lineal
+pix_x_start = round(X_gz2pxl_x1 + X_gz2pxl_x2*x0_rob)
+pix_y_start = round(Y_gz2pxl_x1 + Y_gz2pxl_x2*y0_rob)
+
+print((pix_x_start, pix_y_start))
+
+start_cell = find_cell(free_cells, pix_x_start, pix_y_start, cell_x, cell_y)
+
+visited_cells, dirs = find_path(map_erosion, start_cell, free_cells, cell_x, cell_y)
+
 pth_absolute = convert_pxls2gz(visited_cells, (X_pxl2gz_x1, X_pxl2gz_x2), (Y_pxl2gz_x1, Y_pxl2gz_x2))
 
 pruebas_abs = pth_absolute[:20]
-
-pruebas_abs.pop(0)
+pruebas_dirs = pth_absolute[:19]
 
 index = 0
 n_points_skip = 6
+local_reached = False
 
-print("PUNTOS POR RECORRER: ", pruebas_abs)
-while index < len(pruebas_abs):
-    index, local_goal_abs = get_local_goal(pruebas_abs, index, n_points_skip)
-    print("\tINDICE: ", index, "META LOCAL: ", local_goal_abs)
-print("SALGO")
-# Mantener el robot alineado con el centro de la celda
-# Avanzar las celdas disponibles en un mismo sentido siendo maximo tres
-max_cells = 3
-current_ind = 0
+max_v = 0.5
+w = 0.25
+pruebas_abs.pop(0)
+index, local_goal_abs = get_local_goal(pruebas_abs, index, n_points_skip)
 
-last_x = 0.
-last_y = 0.'''
-# Comprobar cuantas celdillas van en el mismo sentido
-# for i in range(max_cells):
-#     gz_pth[current_ind]
+#local_goal_abs = pruebas_abs[3]
 
-cv2.waitKey(0) # La imagen se sigue mostrando segun el parametro que se pase, si es 0 se muestra de forma infinita
+localized = False
+start_abs = pth_absolute[0]
+# 0 (oeste), -PI/2 (norte), PI (este) o PI/2 (sur). 
+'''while not localized:
+  rob_x = HAL.getPose3d().x
+  rob_y = HAL.getPose3d().y
+  theta_rob = HAL.getPose3d().yaw
+  
+  # Situar en (674.5, 584.5)
+  start_rel = absolute2relative(start_abs[0], start_abs[1], rob_x, rob_y, theta_rob)
+  distance_start = math.sqrt(start_rel[0]**2 + start_rel[1]**2)
+  
+  if distance_start <= 0.057:
+        localized = True
+        
+  w = -math.atan2(start_rel[1], start_rel[0])
+  #w = math.atan2(start_rel[1]-rob_y, start_rel[0]-rob_x)
 
+  print("ANGULO RESTANTE ALINEADO W: ", w, "->", w*1.01)
+  print("ARCOTANGENTE", math.atan2(start_rel[1]-rob_y, start_rel[0]-rob_x))
+  print("DISTANCIA:", distance_start)
+  print("")
+  
+  if math.fabs(w) <= 0.0022:
+    w = 0
+    v = 0.35
+  else:
+    v = 0
+  HAL.setW(w*1.02)
+  HAL.setV(v)
+'''
+
+v = 0
+while True:
+    # Enter iterative code!
+    rob_x = HAL.getPose3d().x
+    rob_y = HAL.getPose3d().y
+    theta_rob = HAL.getPose3d().yaw
+    
+    '''local_goal_relative = absolute2relative(local_goal_abs[0], local_goal_abs[1], rob_x, rob_y, theta_rob)
+    distance_goal = math.sqrt(local_goal_relative[0]**2 + local_goal_relative[1]**2)
+    
+    if local_reached:
+      HAL.setW(0)
+      HAL.setV(0)
+      print("META LOCAL ALCANZADA", local_goal_abs)
+      local_reached = False
+      index, local_goal_abs = get_local_goal(pruebas_abs, index, n_points_skip)
+      local_goal_relative = absolute2relative(local_goal_abs[0], local_goal_abs[1], rob_x, rob_y, theta_rob)
+      print("NUEVA META LOCAL: ", local_goal_relative, "POSICION ACTUAL: ", (rob_x, rob_y))
+      time.sleep(5)
+    
+    if distance_goal <= 0.055:
+      local_reached = True
+    
+     
+    # if distance_goal <= 0.055:
+    #   v = 0
+    # elif math.fabs(w) <= 0.018: 
+    #   v = max_v/distance_goal
+    
+    # if math.fabs(w) <= 0.05:
+    #     w = 0
+    print("local_goal: ", local_goal_relative, "CELDA:", visited_cells[index], "DISTANCIA:", distance_goal)
+    
+    
+    Kp = 1.01
+    #w = w*Kp + 0.05
+    # Kp = 0.28, 0.35, 0.45
+    w = -math.atan2(local_goal_relative[1], local_goal_relative[0])
+    
+    # Si estoy alineado, avanzo, sino paro y me alineo
+    if math.fabs(w) <= 0.0022:
+      v = 0.3
+      w = 0
+    else:
+      v = 0
+      
+    print("LINEAL: ", v, "ANGULO RESTANTE ALINEADO W: ", w, "->", w*1.03)
+    print("")'''
+    
+    # Pruebas de giro
+    w = turn("North", theta_rob)
+    print("W:", w)
+    if math.fabs(w) <= 0.002:
+      w = 0
+    
+    # HAL.setW(w)
+    # HAL.setV(v)
+    HAL.setW(w)
+    HAL.setV(v)
+    
+    
+    
+    '''print("Posicion Movimiento: ", (rob_x, rob_y))
+    time.sleep(3)'''
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
