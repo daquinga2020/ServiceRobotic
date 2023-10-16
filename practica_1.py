@@ -248,20 +248,64 @@ def convert_pxls2gz(coords_pxls, X_pxl2gz, Y_pxl2gz):
     
     return coords_gz
 
-def get_local_goal(path, index, n_points_skip):
-    
+def get_local_goal(dirs, path, index, n_points_skip):
+
+    if index > len(path)-1:
+        index = len(path)-1
+        
     max_index = min(index + n_points_skip, len(path))
-    local_goal = path[min(index, len(path))]
+    local_goal = path[index]
     x_start = path[index][0]
     y_start = path[index][1]
+    dir_start = dirs[index]
     new_index = index + 1
+    new_dir = dirs[index]
     
-    for i in range(index+1, max_index):
-        if x_start == path[i][0] or y_start == path[i][1]:
-            local_goal = path[i]
-            new_index = i + 1
+    if dir_start == dirs[min(index+1, len(path)-1)]:
+        for i in range(index+1, max_index):
+            if (x_start == path[i][0] or y_start == path[i][1]) and dir_start == dirs[i]:
+                local_goal = path[i]
+                new_index = i + 1
+                new_dir = dirs[i]
+        
     
-    return new_index, local_goal
+    return new_index, local_goal, new_dir
+
+def go_start_position(start_abs):
+    
+    localized = False
+    
+    while True:
+        rob_x = HAL.getPose3d().x
+        rob_y = HAL.getPose3d().y
+        theta_rob = HAL.getPose3d().yaw
+        print("META GLOBAL: ", start_abs)
+        print("POS ACTUAL", (round(rob_x, 4), round(rob_y, 4)))
+        # Situar en (674.5, 584.5)
+        # Obtener punto relativo al sistema de coordenadas del robot
+        start_rel = absolute2relative(start_abs[0], start_abs[1], rob_x, rob_y, theta_rob)
+        distance_start = math.sqrt(start_rel[0]**2 + start_rel[1]**2)
+        
+        if distance_start <= 0.057:
+            print("META GLOBAL ALCANZADA: ", pth_absolute[index])
+            localized = True
+            HAL.setW(0)
+            HAL.setV(0)
+                
+        w = math.atan2(start_rel[1], -start_rel[0])
+        
+        if math.fabs(w) <= 0.0025:
+            w = 0
+            v = 0.45
+        else:
+            v = 0
+            
+        print("ANGULO: ", w, math.degrees(w), "->", w*1.02)
+        print("DISTANCIA:", distance_start)
+        print("")
+            
+        HAL.setW(w*1.02)
+        HAL.setV(v)
 
 def turn(dir, robott):
     
@@ -281,6 +325,21 @@ def turn(dir, robott):
     error = round(robott - desire_dir, 4)
     
     return error
+    
+def get_linvel(distance):
+    min_distance = 0.25
+    min_vel = 0.4
+    max_vel = 1.8
+
+    if distance < min_distance:
+        return min_vel
+    elif distance >= min_distance and distance <= 1.0:
+        # Calcular la velocidad proporcional dentro de este rango
+        slope = (max_vel - min_vel) / (1.0 - min_distance)
+        vel = slope * (distance - min_distance) + min_vel
+        return vel
+    else:
+        return max_vel
 
 
 map_img = cv2.imread('RoboticsAcademy/exercises/static/exercises/vacuum_cleaner_loc/resources/images/mapgrannyannie.png', 0) # Leer la imagen
@@ -295,7 +354,8 @@ cell_x = 18
 cell_y = 18
 
 draw_grid(map_erosion, h, w, cell_x, cell_y)
-
+'''for i in range(594, 685, 18):
+    fill_cell(map_erosion, i, 522, cell_x, cell_y, 0)'''
 # Guardar las celdillas libres fuera de obstaculos
 # Luego ubicar a nuestro robot en cual de esas celdillas esta.
 free_cells = save_free_cells(map_erosion, h, w, cell_x, cell_y)
@@ -327,60 +387,30 @@ Y_pxl2gz_x2 = 0.010324
 pix_x_start = round(X_gz2pxl_x1 + X_gz2pxl_x2*x0_rob)
 pix_y_start = round(Y_gz2pxl_x1 + Y_gz2pxl_x2*y0_rob)
 
-print((pix_x_start, pix_y_start))
-
 start_cell = find_cell(free_cells, pix_x_start, pix_y_start, cell_x, cell_y)
 
 visited_cells, dirs = find_path(map_erosion, start_cell, free_cells, cell_x, cell_y)
 
+# Ruta que va a realizar el robot por toda la casa
 pth_absolute = convert_pxls2gz(visited_cells, (X_pxl2gz_x1, X_pxl2gz_x2), (Y_pxl2gz_x1, Y_pxl2gz_x2))
 
-pruebas_abs = pth_absolute[:20]
-pruebas_dirs = pth_absolute[:19]
+# Actualmente en fase de pruebas cogemos las 20 primeras posiciones
+#pruebas_abs = pth_absolute[:20]
+#pruebas_dirs = pth_absolute[:19]
 
 index = 0
-n_points_skip = 6
+n_points_skip = 16
 local_reached = False
 
-max_v = 0.5
-w = 0.25
-pruebas_abs.pop(0)
-index, local_goal_abs = get_local_goal(pruebas_abs, index, n_points_skip)
-
-#local_goal_abs = pruebas_abs[3]
-
-localized = False
-start_abs = pth_absolute[0]
+# Se ubica al robot en la primera celdilla, el inicio
+go_start_position(pth_absolute[1])
+pth_absolute.pop(0)
+# Se obtiene la primera posicion a la que dirigirse
+index, local_goal_abs, dir = get_local_goal(dirs, pth_absolute, index, n_points_skip)
 # 0 (oeste), -PI/2 (norte), PI (este) o PI/2 (sur). 
-'''while not localized:
-  rob_x = HAL.getPose3d().x
-  rob_y = HAL.getPose3d().y
-  theta_rob = HAL.getPose3d().yaw
-  
-  # Situar en (674.5, 584.5)
-  start_rel = absolute2relative(start_abs[0], start_abs[1], rob_x, rob_y, theta_rob)
-  distance_start = math.sqrt(start_rel[0]**2 + start_rel[1]**2)
-  
-  if distance_start <= 0.057:
-        localized = True
-        
-  w = -math.atan2(start_rel[1], start_rel[0])
-  #w = math.atan2(start_rel[1]-rob_y, start_rel[0]-rob_x)
 
-  print("ANGULO RESTANTE ALINEADO W: ", w, "->", w*1.01)
-  print("ARCOTANGENTE", math.atan2(start_rel[1]-rob_y, start_rel[0]-rob_x))
-  print("DISTANCIA:", distance_start)
-  print("")
-  
-  if math.fabs(w) <= 0.0022:
-    w = 0
-    v = 0.35
-  else:
-    v = 0
-  HAL.setW(w*1.02)
-  HAL.setV(v)
-'''
-
+max_v = 1.2
+w = 0
 v = 0
 while True:
     # Enter iterative code!
@@ -388,56 +418,53 @@ while True:
     rob_y = HAL.getPose3d().y
     theta_rob = HAL.getPose3d().yaw
     
-    '''local_goal_relative = absolute2relative(local_goal_abs[0], local_goal_abs[1], rob_x, rob_y, theta_rob)
+    # Calculo del punto relativo al sistema de coordenadas del robot y su distancia al mismo
+    local_goal_relative = absolute2relative(local_goal_abs[0], local_goal_abs[1], rob_x, rob_y, theta_rob)
     distance_goal = math.sqrt(local_goal_relative[0]**2 + local_goal_relative[1]**2)
     
+    # Si se alcanza la meta, motores a cero y se define una nueva meta local
     if local_reached:
       HAL.setW(0)
       HAL.setV(0)
-      print("META LOCAL ALCANZADA", local_goal_abs)
+      go_start_position(pth_absolute[index])
+      print("META GLOBAL ALCANZADA: ", pth_absolute[index])
       local_reached = False
-      index, local_goal_abs = get_local_goal(pruebas_abs, index, n_points_skip)
+      index, local_goal_abs, dir = get_local_goal(dirs, pth_absolute, index, n_points_skip)
       local_goal_relative = absolute2relative(local_goal_abs[0], local_goal_abs[1], rob_x, rob_y, theta_rob)
-      print("NUEVA META LOCAL: ", local_goal_relative, "POSICION ACTUAL: ", (rob_x, rob_y))
-      time.sleep(5)
+      distance_goal = math.sqrt(local_goal_relative[0]**2 + local_goal_relative[1]**2)
+      print("NUEVA META GLOBAL: ", pth_absolute[index], "POSICION ACTUAL: ", (rob_x, rob_y), "GIRO:", dir)
+      #time.sleep(2)
     
+    # Si la distancia es menor que la minima se considera alcanzada la meta local
     if distance_goal <= 0.055:
       local_reached = True
-    
-     
-    # if distance_goal <= 0.055:
-    #   v = 0
-    # elif math.fabs(w) <= 0.018: 
-    #   v = max_v/distance_goal
-    
-    # if math.fabs(w) <= 0.05:
-    #     w = 0
-    print("local_goal: ", local_goal_relative, "CELDA:", visited_cells[index], "DISTANCIA:", distance_goal)
+
     
     
-    Kp = 1.01
-    #w = w*Kp + 0.05
+    
+    '''Kp = 1.01
+    # w = w*Kp + 0.05
     # Kp = 0.28, 0.35, 0.45
-    w = -math.atan2(local_goal_relative[1], local_goal_relative[0])
-    
-    # Si estoy alineado, avanzo, sino paro y me alineo
-    if math.fabs(w) <= 0.0022:
-      v = 0.3
-      w = 0
-    else:
-      v = 0
+    # alineacion = math.atan2(local_goal_relative[1], local_goal_relative[0])
       
     print("LINEAL: ", v, "ANGULO RESTANTE ALINEADO W: ", w, "->", w*1.03)
     print("")'''
     
+    alineacion = math.atan2(local_goal_relative[1], -local_goal_relative[0])
+    print("META GLOBAL: ", pth_absolute[index])
+    print("ALINEACION", alineacion, "DISTANCIA:", round(distance_goal, 4))
     # Pruebas de giro
-    w = turn("North", theta_rob)
-    print("W:", w)
+    w = turn(dir, theta_rob)
+    print("W:", w, "GIRO:", dir, "POS ACTUAL", (round(rob_x, 4), round(rob_y, 4)))
+    print("")
     if math.fabs(w) <= 0.002:
-      w = 0
+        w = 0
+        v = get_linvel(distance_goal)
+    else:
+        v = 0
     
-    # HAL.setW(w)
-    # HAL.setV(v)
+    # HAL.setW(0)
+    # HAL.setV(0)
     HAL.setW(w)
     HAL.setV(v)
     

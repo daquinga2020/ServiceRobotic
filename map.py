@@ -174,7 +174,6 @@ def find_path(map, start, f_cells, size_cell_x, size_cell_y):
         if len(vstd_cells) > 1:
             directions.append(current_direction)
         print(center_pxl_cell, current_direction)
-        print("")
         # Si la celda actual en la que estoy era un punto de retorno, se actualiza la lista de puntos de retorno
         if current_cell in return_points:
             return_points.remove(current_cell)
@@ -204,10 +203,10 @@ def find_path(map, start, f_cells, size_cell_x, size_cell_y):
                 current_direction = last_direction
                 
                 pth_return_point, pth_directions = search_path2rtrnpnt(current_cell, return_points[-1], cop_f_cells, size_cell_x, size_cell_y) # Cambiarlo a pixeles centrales
+                
                 # Elimino el punto de retorno de la meta porque va a ser el siguiente current_cell y se añadira a la lista
                 pth_return_point.pop(-1)
                 pth_directions.pop(-1)
-                
                 temp_pth_return_point = []
                 for cell in pth_return_point:
                     temp_pth_return_point.append(get_pixel_center(cell, size_cell_x, size_cell_y))
@@ -218,7 +217,7 @@ def find_path(map, start, f_cells, size_cell_x, size_cell_y):
                 current_cell = return_points[-1]
 
         cv2.imshow('MAP', map)
-        cv2.waitKey(1) # 80 buen tiempo
+        cv2.waitKey(100) # 80 buen tiempo
         
     return vstd_cells, directions
 
@@ -235,49 +234,6 @@ def absolute2relative (x_abs, y_abs, robotx, roboty, robott):
 
     return x_rel, y_rel
 
-'''def navigate(path, reached):
-
-    v = 2.5
-    local_reached = True
-    ind = 0
-    
-    while not reached:
-        rob_x = HAL.getPose3d().x
-        rob_y = HAL.getPose3d().y
-        theta_rob = HAL.getPose3d().yaw
-
-        # Si se ha alcanzado la meta local, actualizar a la siguiente meta
-        if local_reached:
-            ind += 4
-            local_reached = False
-
-        if ind >= len(path)-1:
-            ind = len(path)-1
-        
-        x_abs, y_abs = path[ind][0], path[ind][1]
-        goalx, goaly = absolute2relative(x_abs, y_abs, rob_x, rob_y, theta_rob)
-        
-        module_goal = math.sqrt(goalx**2 + goaly**2)
-
-        if module_goal <= 1.5:
-            local_reached = True
-            if ind == len(path)-1:
-                reached = True
-                HAL.setV(0)
-                HAL.setW(0)
-                break
-
-        w = math.atan2(goaly, goalx)
-        if math.fabs(w) <= 0.05:
-            w = 0
-            if v <= 4:
-                v += 0.5
-        else:
-            v = 2.5
-
-        HAL.setV(v)
-        HAL.setW(w)
-'''
 
 cv2.namedWindow('MAP', cv2.WINDOW_NORMAL)
 
@@ -302,6 +258,12 @@ cell_x = 18
 cell_y = 18
 
 draw_grid(map_erosion, h, w, cell_x, cell_y)
+
+#594, 522)
+# (684, 522)
+# for i in range(594, 685, 18):
+#     fill_cell(map_erosion, i, 522, cell_x, cell_y, 0)
+
 
 # Guardar las celdillas libres fuera de obstaculos
 # Luego ubicar a nuestro robot en cual de esas celdillas esta.
@@ -348,8 +310,14 @@ start_cell = find_cell(free_cells, x_start, y_start, cell_x, cell_y)
 # Obtener las celdillas vecinas de la celdilla actual y avanzar al norte si es posible.
 
 cop = free_cells.copy()
-visited_cells, dirs = find_path(map_erosion, start_cell, free_cells, cell_x, cell_y)
+visited_cells, dirs = find_path(map_erosion, start_cell, cop, cell_x, cell_y)
 visited_cells.pop(0)
+
+# print(594, 522)
+# fill_cell(map_erosion, 594, 522, cell_x, cell_y, 100)
+# print(684, 522)
+# fill_cell(map_erosion, 684, 522, cell_x, cell_y, 100)
+# cv2.imshow('MAP', map_erosion)
 print(len(visited_cells), len(dirs))
 for i in range(len(visited_cells)):
     print(visited_cells[i], dirs[i])
@@ -461,19 +429,24 @@ def convert_pxls2gz(coords_pxls, X_pxl2gz, Y_pxl2gz):
     
     return coords_gz
 
-def get_local_goal(path, index, n_points_skip):
-    
-    local_goal = path[index]
+def get_local_goal(dirs, path, index, n_points_skip):
+
+    if index > len(path)-1:
+        index = len(path)-1
+        
     max_index = min(index + n_points_skip, len(path))
-    local_goal = path[min(index, len(path))]
+    local_goal = path[index]
     x_start = path[index][0]
     y_start = path[index][1]
+    dir_start = dirs[index]
     new_index = index + 1
     
-    for i in range(index+1, max_index):
-        if x_start == path[i][0] or y_start == path[i][1]:
-            local_goal = path[i]
-            new_index = i + 1
+    if dir_start == dirs[min(index+1, len(path)-1)]:
+        for i in range(index+1, max_index):
+            if (x_start == path[i][0] or y_start == path[i][1]) and dir_start == dirs[i]:
+                local_goal = path[i]
+                new_index = i + 1
+        
     
     return new_index, local_goal
 
@@ -493,22 +466,21 @@ X_pxl2gz_x2 = -0.010269
 # Pesos para y_pixel a y_gz
 Y_pxl2gz_x1 = -4.4614
 Y_pxl2gz_x2 = 0.010324
-'''
+
 pth_absolute = convert_pxls2gz(visited_cells, (X_pxl2gz_x1, X_pxl2gz_x2), (Y_pxl2gz_x1, Y_pxl2gz_x2))
 
-pruebas_abs = pth_absolute[:20]
-
-pruebas_abs.pop(0)
-
 index = 0
-n_points_skip = 6
+n_points_skip = 16
+print(visited_cells)
 
-print("PUNTOS POR RECORRER: ", pruebas_abs)
-while index < len(pruebas_abs):
-    index, local_goal_abs = get_local_goal(pruebas_abs, index, n_points_skip)
-    print("\tINDICE: ", index, "META LOCAL: ", local_goal_abs)
+while index < len(pth_absolute):
+    print("CELDA:", visited_cells[index], dirs[index], "PUNTO: ", pth_absolute[index])
+    index, local_goal_abs = get_local_goal(dirs, pth_absolute, index, n_points_skip)
+    print("CELDA:", visited_cells[index-1])
+    print("\tINDICE: ", index, "META LOCAL: ", local_goal_abs, dirs[index-1])
+    print("")
 print("SALGO")
-# Mantener el robot alineado con el centro de la celda
+'''# Mantener el robot alineado con el centro de la celda
 # Avanzar las celdas disponibles en un mismo sentido siendo maximo tres
 max_cells = 3
 current_ind = 0
