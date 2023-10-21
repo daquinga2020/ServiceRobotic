@@ -1,3 +1,4 @@
+import time
 import numpy as np
 import cv2
 import queue
@@ -217,7 +218,7 @@ def find_path(map, start, f_cells, size_cell_x, size_cell_y):
                 current_cell = return_points[-1]
 
         cv2.imshow('MAP', map)
-        cv2.waitKey(100) # 80 buen tiempo
+        cv2.waitKey(1) # 80 buen tiempo
         
     return vstd_cells, directions
 
@@ -238,6 +239,7 @@ def absolute2relative (x_abs, y_abs, robotx, roboty, robott):
 cv2.namedWindow('MAP', cv2.WINDOW_NORMAL)
 
 map_img = cv2.imread('mapgrannyannie.png', 0) # Leer la imagen
+map_img_rs = cv2.resize(map_img,(990,990))
 h, w = map_img.shape
 # IMAGEN ALTURA: 1012 ANCHO 1013; img[fila][columna]
 
@@ -252,7 +254,6 @@ kernel = np.ones((4,4), np.uint8)
 # of iterations, which will determine how much
 # you want to erode/dilate a given image.
 map_erosion = cv2.erode(map_img, kernel, iterations=12)
-
 # Utilizar celdillas de 32x32 o 36x36, con 28 parece rellenar bastantes sitios
 cell_x = 18
 cell_y = 18
@@ -308,7 +309,7 @@ start_cell = find_cell(free_cells, x_start, y_start, cell_x, cell_y)
 # Algoritmo BSA
 # Ira fuera del bucle while
 # Obtener las celdillas vecinas de la celdilla actual y avanzar al norte si es posible.
-
+time.sleep(8)
 cop = free_cells.copy()
 visited_cells, dirs = find_path(map_erosion, start_cell, cop, cell_x, cell_y)
 visited_cells.pop(0)
