@@ -1,0 +1,14 @@
+UTM: Easting (+x), North (+y).
+
+Posicion inicial del drone: [0.1517, 0.02095, 0.51402] // [-0.0506, 0.1692, -0.0589] metros.
+Ubicación del drone: 40º16’48.2” N, 3º49’03.5” W // Easting: 430492 Northing: 4459162
+Ubicación cercana a los supervivientes: 40º16’47.23” N, 3º49’01.78” W // Easting: 430532 Northing: 4459132
+
+
+Drone Position Control: North (+x), West (+y), Height (+z).
+Drone Velocity Control: Forward (+x), Left (+y), Up (+z).
+
+Las coordenadas en UTM son globales, mientras que las del drone son locales.
+
+
+No es necesario saber cuando el drone esta en el aire. Sin embargo, podría ser una gran mejora para su función de control de posición de bloqueo si hace que sólo funcione cuando el dron está realmente volando, no en el suelo.
