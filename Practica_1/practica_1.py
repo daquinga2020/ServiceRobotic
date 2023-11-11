@@ -375,7 +375,6 @@ while True:
     
     if distance_goal <= 0.075:
       local_reached = True
-
   
     
     w = -math.atan2(local_goal_relative[1], local_goal_relative[0])*Kp
