@@ -58,6 +58,7 @@ while True:
 '''
 import numpy as np
 import cv2
+import time
 
 def rotate_img(img, angle):
     # Rotar imagen cada 45º hasta encontrar cara
@@ -107,16 +108,57 @@ def detect_face(img_gray, detector, a):
 #---loading the Haar Cascade detector using CascadeClassifier---
 face_detector=cv2.CascadeClassifier('haarcascade_frontalface_alt.xml')
 #---Loading the image from local -----
-import time
+
 start = time.time()
-img = cv2.imread('Imgs_pruebas/cara_1.png')
-img_gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+img = cv2.imread('Imgs_pruebas/cara_2.png')
+h, w = img.shape[:2]
+
+center_x, center_y = w // 2, h//2
+mid_h, mid_w = int(h // 3.5), int(w // 3.5)
+
+start_y = center_y - mid_h
+end_y = center_y + mid_h
+start_x = center_x - mid_w
+end_x = center_x + mid_w
+
+recorted_img = img[start_y:end_y, start_x:end_x]
+
+img_gray = cv2.cvtColor(recorted_img, cv2.COLOR_BGR2GRAY)
 
 
 if detect_body(img_gray):
     print("CUERPO DETECTADO")
 
 angle = 0
+
+# import cv2
+# import numpy as np
+
+# # Leer la imagen con OpenCV
+# imagen_opencv = cv2.imread('Imgs_pruebas/cara_1.png')
+
+# # Obtener la altura y el ancho de la imagen
+# alto, ancho = imagen_opencv.shape[:2]
+
+# # Definir las coordenadas del área central que quieres conservar
+# centro_y, centro_x = alto // 2, ancho // 2
+# mitad_alto, mitad_ancho = alto // 4, ancho // 4  # Por ejemplo, si quieres quedarte con la mitad de la altura y el ancho
+
+# # Calcular las coordenadas del rectángulo para recortar
+# inicio_y = centro_y - mitad_alto
+# fin_y = centro_y + mitad_alto
+# inicio_x = centro_x - mitad_ancho
+# fin_x = centro_x + mitad_ancho
+
+# # Recortar la imagen
+# imagen_recortada = imagen_opencv[inicio_y:fin_y, inicio_x:fin_x]
+
+# # Mostrar la imagen original y la imagen recortada
+# cv2.imshow('Imagen Original', imagen_opencv)
+# cv2.imshow('Imagen Recortada', imagen_recortada)
+# cv2.waitKey(0)
+# cv2.destroyAllWindows()
+
 
 
 # while angle <= 360:
@@ -147,9 +189,10 @@ angle = 0
 #     cv2.destroyAllWindows()
 #     angle += 45
 b = [0]
+cv2.imshow('img',img_gray)
+cv2.waitKey(0)
 if detect_face(img_gray, face_detector, b):
     print("Detecto Cara")
-print(b)
 
 # resultsContiene # las coordenadas de los cuadros delimitadores de la imagen.
 # detectMultiScale # Este método sólo funciona con imágenes en escala de grises.

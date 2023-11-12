@@ -4,7 +4,7 @@ import cv2
 import time
 import math
 
-height = 2.25
+height = 2.0
 
 def choose_takeoff_land(action):
   
@@ -97,7 +97,7 @@ def get_linvel(distance):
     min_distance = 0.1
     max_distance = 5.0
     min_vel = 0.3
-    max_vel = 0.7
+    max_vel = 0.6
     
     slope = (max_vel - min_vel) / (max_distance - min_distance)
     vel = slope * (distance - min_distance) + min_vel
@@ -134,7 +134,7 @@ def detect_body(img_gray):
     
     for j in range(h):
       for i in range(w):
-        if img_gray[j][i] <= 20:
+        if img_gray[j][i] <= 30:
           return True
             
     return False
@@ -145,6 +145,10 @@ def detect_face(img_gray, detector, position_faces, drone_position):
     y_drone = round(drone_position[1], 2)
     angle = 0
     results = []
+    counter_faces = 0
+    sum_x = 0
+    sum_y = 0
+    ind = 0
     
     while angle <= 360:
       img_gray_rotated = rotate_img(img_gray, angle)
@@ -157,23 +161,47 @@ def detect_face(img_gray, detector, position_faces, drone_position):
         # en el array de caras detectadas. Si hay dos caras detectadas, descartar la que ya
         # se conoce la posicion.
         # 3. Guardar la posicion de la nueva cara
+        #
+        sum_x += x_drone
+        sum_y += y_drone
+        counter_faces += 1
+        #
         for (x,y,w,h) in results:
           # Comprobar la distancia euclidea
-          if len(position_faces) == 0:
+          '''if len(position_faces) == 0:
             position_faces.append((x_drone, y_drone))
           else:
+            dist_new_face = math.sqrt(x_drone**2 + y_drone**2)
             for p in position_faces:
               dist_current_face = math.sqrt(p[0]**2 + p[1]**2)
-              dist_new_face = math.sqrt(x_drone**2 + y_drone**2)
-              if abs(dist_current_face-dist_new_face) > 2.5:
-                position_faces.append((x_drone, y_drone))
+              print("Distancia Entre Actual-Nueva: ", abs(dist_current_face-dist_new_face))
+              if abs(dist_current_face-dist_new_face) > 1.5:
+                counter_faces += 1'''
           # Dibujar rectangulo en la cara de la persona detectada
           cv2.rectangle(img_gray_rotated, (x,y), (x+w,y+h), 255, 2)
           GUI.showLeftImage(img_gray_rotated)
         
+        
         break
       
-      angle += 30
+      angle += 20
+    
+    '''if counter_faces == len(position_faces):
+      position_faces.append((x_drone, y_drone))'''
+    
+    if counter_faces != 0:
+      med_x = sum_x/counter_faces
+      med_y = sum_y/counter_faces
+      dist_new_face = math.sqrt(med_x**2 + med_y**2)
+      for p in position_faces:
+        dist_current_face = math.sqrt(p[0]**2 + p[1]**2)
+        print("Dist Act-New: ", abs(dist_current_face-dist_new_face))
+        if abs(dist_current_face-dist_new_face) > 1.5:
+          ind += 1
+          
+      if ind == len(position_faces):
+        position_faces.append((med_x, med_y))
+    #
 
 
 time.sleep(6)
@@ -189,16 +217,17 @@ print("POSICION INICIAL: ", [x0, y0, z0, yaw0])
 x0_goal = 40
 y0_goal = -30
 
-path = get_path_sweep((x0_goal+5, y0_goal), (20, 15), 5)
+path = get_path_sweep((x0_goal+3, y0_goal), (20, 13), 10)
+x0_goal, y0_goal = path[0]
 
-time_battery = 60.0*7
+time_battery = 60.0*15
 choose_takeoff_land("TakeOff")
 takeoff_time = time.time()
 print("Took Off")
 
 vx, vy = 0, 0
 on_axis_x = True # x:True - y:False
-Kp = 0.35
+Kp = 0.55
 
 orientated = False
 localizated_people = False
@@ -211,17 +240,12 @@ people = []
 while True:
   
     state_dron = HAL.get_landed_state()
-    # ventral_img = HAL.get_ventral_image()
-    # frontal_img = HAL.get_frontal_image()
-      
-    # GUI.showImage(frontal_img)
-    # GUI.showLeftImage(ventral_img)
     
     # Si esta en el aire hace cosas
     if state_dron == 2 and not localizated_people:
       x, y, z = HAL.get_position()
       yaw = HAL.get_yaw()
-      print("POSICION: ", [round(x, 4), round(y, 4), round(z, 4)], "YAW:", round(yaw, 4))
+      print("POSICION: ", [round(x, 4), round(y, 4)])
       
       # Si se acaba la bateria regreso al punto inicial a recargar
       if time.time()-takeoff_time >= time_battery:
@@ -241,25 +265,36 @@ while True:
             orientated = False
             # ind = 1
       else:
-        if check_position((x, y), (x0_goal, y0_goal), 0.5) or reached_initial_goal:
+        if check_position((x, y), (x0_goal, y0_goal), 0.1) or reached_initial_goal:
           # Analizar y mostrar imagen cuando se detecte un color negro
+          if not reached_initial_goal:
+            time.sleep(2)
+            print("START SEARCH")
+            
           if len(people) != 0:
-            print("PEOPLE: ", people)
+            for p in people:
+              print("Persona Localizada ----> ", p)
             
           ventral_img = HAL.get_ventral_image()
-          img_gray = cv2.cvtColor(ventral_img, cv2.COLOR_BGR2GRAY)
-          GUI.showImage(img_gray)
+          h, w = ventral_img.shape[:2]
+          center_x, center_y = w // 2, h//2
+          mid_h, mid_w = int(h // 3.25), int(w // 3.25)
+
+          start_y, end_y = center_y - mid_h, center_y + mid_h
+          start_x, end_x = center_x - mid_w, center_x + mid_w
+
+          recorted_img = ventral_img[start_y:end_y, start_x:end_x]
+          img_gray = cv2.cvtColor(recorted_img, cv2.COLOR_BGR2GRAY)
+          GUI.showImage(ventral_img)
 
           if detect_body(img_gray):
             # Proceso la imagen
             GUI.showLeftImage(img_gray)
             detect_face(img_gray, face_detector, people, (x, y))
           
-          if not reached_initial_goal:
-            print("START SEARCH")
-          
           reached_initial_goal = True
           x_goal, y_goal = path[ind]
+          
           if check_position((x, y), (x_goal, y_goal), 0.25):
             HAL.set_cmd_mix(0, 0, height, 0)
             # time.sleep(1)
@@ -283,29 +318,24 @@ while True:
             vx = get_linvel(dist_x)
             vy = get_linvel(dist_y)
             
-            print("Distance:", (round(dist_x, 4), round(dist_y, 4)))
+            # print("Distance:", (round(dist_x, 4), round(dist_y, 4)))
 
             # Saber hacia que eje me muevo, si en X o en Y
             # Asignar velocidad minima al eje en el que no se debe mover para evitar desviarse de la trayectoria
             
             if math.fabs(w) <= 0.01 and not orientated:
-              print("ORIENTATED TO GOAL")
+              # print("ORIENTATED TO GOAL")
               orientated = True
               w = 0
             elif orientated:
               w = 0
-              # Cuando esta en el eje y comandar con cmd_pose
-              if on_axis_x:
-                vx = vx * sense_x
-                vy = 0.075 * sense_y
-              else:
-                vx = vx * sense_x
-                vy = 0.075 * sense_y
+              vx = vx * sense_x
+              vy = 0.075 * sense_y
             else:
               vx = 0
               vy = 0
             
-            print("VX:", vx, "VY:", vy, "W:", w)
+            # print("VX:", vx, "VY:", vy, "W:", w)
             HAL.set_cmd_mix(vx, vy, height, w)
             #
         elif not reached_initial_goal:
