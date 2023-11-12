@@ -146,8 +146,6 @@ def detect_face(img_gray, detector, position_faces, drone_position):
     angle = 0
     results = []
     counter_faces = 0
-    sum_x = 0
-    sum_y = 0
     ind = 0
     
     while angle <= 360:
@@ -161,23 +159,8 @@ def detect_face(img_gray, detector, position_faces, drone_position):
         # en el array de caras detectadas. Si hay dos caras detectadas, descartar la que ya
         # se conoce la posicion.
         # 3. Guardar la posicion de la nueva cara
-        #
-        sum_x += x_drone
-        sum_y += y_drone
         counter_faces += 1
-        #
         for (x,y,w,h) in results:
-          # Comprobar la distancia euclidea
-          '''if len(position_faces) == 0:
-            position_faces.append((x_drone, y_drone))
-          else:
-            dist_new_face = math.sqrt(x_drone**2 + y_drone**2)
-            for p in position_faces:
-              dist_current_face = math.sqrt(p[0]**2 + p[1]**2)
-              print("Distancia Entre Actual-Nueva: ", abs(dist_current_face-dist_new_face))
-              if abs(dist_current_face-dist_new_face) > 1.5:
-                counter_faces += 1'''
-          # Dibujar rectangulo en la cara de la persona detectada
           cv2.rectangle(img_gray_rotated, (x,y), (x+w,y+h), 255, 2)
           GUI.showLeftImage(img_gray_rotated)
         
@@ -186,21 +169,15 @@ def detect_face(img_gray, detector, position_faces, drone_position):
       
       angle += 20
     
-    '''if counter_faces == len(position_faces):
-      position_faces.append((x_drone, y_drone))'''
-    
     if counter_faces != 0:
-      med_x = sum_x/counter_faces
-      med_y = sum_y/counter_faces
-      dist_new_face = math.sqrt(med_x**2 + med_y**2)
       for p in position_faces:
-        dist_current_face = math.sqrt(p[0]**2 + p[1]**2)
-        print("Dist Act-New: ", abs(dist_current_face-dist_new_face))
-        if abs(dist_current_face-dist_new_face) > 1.5:
+        dist_new_face = math.sqrt((p[0] - x_drone)**2 + (p[1] - y_drone)**2)
+        print("Dist Act-New: ", dist_new_face)
+        if dist_new_face > 1.75:
           ind += 1
-          
+      
       if ind == len(position_faces):
-        position_faces.append((med_x, med_y))
+        position_faces.append((x_drone, y_drone))
     #
 
 
@@ -217,7 +194,7 @@ print("POSICION INICIAL: ", [x0, y0, z0, yaw0])
 x0_goal = 40
 y0_goal = -30
 
-path = get_path_sweep((x0_goal+3, y0_goal), (20, 13), 10)
+path = get_path_sweep((x0_goal+3, y0_goal), (20, 11), 9)
 x0_goal, y0_goal = path[0]
 
 time_battery = 60.0*15
@@ -272,13 +249,14 @@ while True:
             print("START SEARCH")
             
           if len(people) != 0:
+            print("Personas Encontradas: ", len(people))
             for p in people:
-              print("Persona Localizada ----> ", p)
+              print("Persona Localizada  --------> ", p)
             
           ventral_img = HAL.get_ventral_image()
           h, w = ventral_img.shape[:2]
           center_x, center_y = w // 2, h//2
-          mid_h, mid_w = int(h // 3.25), int(w // 3.25)
+          mid_h, mid_w = int(h // 4), int(w // 4)
 
           start_y, end_y = center_y - mid_h, center_y + mid_h
           start_x, end_x = center_x - mid_w, center_x + mid_w
@@ -291,6 +269,8 @@ while True:
             # Proceso la imagen
             GUI.showLeftImage(img_gray)
             detect_face(img_gray, face_detector, people, (x, y))
+            
+            #
           
           reached_initial_goal = True
           x_goal, y_goal = path[ind]
@@ -324,7 +304,6 @@ while True:
             # Asignar velocidad minima al eje en el que no se debe mover para evitar desviarse de la trayectoria
             
             if math.fabs(w) <= 0.01 and not orientated:
-              # print("ORIENTATED TO GOAL")
               orientated = True
               w = 0
             elif orientated:
