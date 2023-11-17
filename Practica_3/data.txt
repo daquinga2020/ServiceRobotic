@@ -1,0 +1,11 @@
+Valor minimo y máximo que puede medir cada laser.
+data_BackLaser.minRange, data_BackLaser.maxRange ->0.079, 11.0
+data_FrontLaser.minRange, data_FrontLaser.maxRange ->0.079, 11.0
+data_RightLaser.minRange, data_RightLaser.maxRange ->0.079, 9.5
+
+Coche mira hacia adelante -> Yaw: 0
+Coche mira hacia la derecha -> Yaw: -pi/2
+Coche mira hacia la izquierda -> Yaw: +pi/2
+Coche mira hacia atras -> Yaw: -pi
+
+Laser derecha del 60 al 100 mas o menos una distancia de 3.7 y mayor que 3.2

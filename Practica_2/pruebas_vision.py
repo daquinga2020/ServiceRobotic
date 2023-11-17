@@ -110,7 +110,7 @@ face_detector=cv2.CascadeClassifier('haarcascade_frontalface_alt.xml')
 #---Loading the image from local -----
 
 start = time.time()
-img = cv2.imread('Imgs_pruebas/cara_5.png')
+img = cv2.imread('Imgs_pruebas/cara_4.png')
 h, w = img.shape[:2]
 
 center_x, center_y = w // 2, h//2
@@ -122,7 +122,6 @@ start_x = center_x - mid_w
 end_x = center_x + mid_w
 
 recorted_img = img[start_y:end_y, start_x:end_x]
-
 img_gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
 
