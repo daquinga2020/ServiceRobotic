@@ -45,9 +45,17 @@ time.sleep(2)
 
 # Estados
 ALIGNMENT = 1
-SEARCHING_FOLLOW = 2
+SEARCHING_HOLLOW = 2
 SEARCHING_REFERENCE = 3
 PARKING = 4
+
+CURRENT_STATE = ALIGNMENT
+
+# PARKING STATES
+TURN = 5
+BACKWARD = 6
+PARKING_STATE = TURN
+
 
 # Car
 W_car = 2.6
@@ -60,16 +68,11 @@ hollow_w = H_car
 gama = math.atan(hollow_h/(hollow_w/2))
 gama = round(math.degrees(gama))
 
-
 count_front_free = 0
 count_back_free = 0
 count_free_hollow = 0
 count_near_car = 0
-
-oriented = False
-find_hollow = False
-near_car = False
-parking = False
+count_backward = 0
 
 V = 0
 
@@ -88,77 +91,113 @@ while True:
     
     
     # print("POSE:", (x_car, y_car, yaw_car))
+    
+    if CURRENT_STATE == ALIGNMENT:
+      print("ALIGNMENT")
+      if not check_car_orientation(yaw_car, 0.0, 0.001):
+        W = (0.0 - yaw_car)
+      else:
+        CURRENT_STATE = SEARCHING_HOLLOW
+        W = 0
+        V = 0.7
 
-    if not check_car_orientation(yaw_car, 0.0, 0.001) and not oriented:
-      W = (0.0 - yaw_car)
-    else:
-      oriented = True
-      W = 0
-      V = 0.7
-    
-    '''for i in right_laser:
-      print((round(i[0], 4), round(i[1], 4)), "DEGREE:", math.degrees(i[1]))
-      time.sleep(0.15)'''
-    
-    # Find HOLLOW
-    if not find_hollow:
+    elif CURRENT_STATE == SEARCHING_HOLLOW:
+      print("SEARCHING_HOLLOW")
       for i in range(15): # Cambiando el parametro de range aumenta/disminuye el espacio
         if front_laser[i][0] >= 7.0:
           count_front_free += 1
         
-        if back_laser[i-1][0] >= 7.0:
+        if back_laser[-i-1][0] >= 7.0:
           count_back_free += 1
-    
-    
-    if count_front_free - count_back_free == 0 and not find_hollow:
-      print("SEARCHING POSIBLE HOLLOW")
-      for m in right_laser:
-        angle = math.degrees(m[1])
-        if 180 - gama > angle > gama:
-          aprox_measure = hollow_h/math.sin(math.radians(angle))
-        else:
-          aprox_measure = (hollow_w/2)/math.cos(math.radians(angle))
-          if aprox_measure <= 0:  
-            aprox_measure = hollow_h + aprox_measure
-            
-        if m[0] >= aprox_measure:
-          count_free_hollow += 1
-      
-      if count_free_hollow == 180:
-        find_hollow = True
-      
-      count_free_hollow = 0
-      
-    count_front_free = 0
-    count_back_free = 0
-    ######
-    
-    # Ahora buscar coche al lado o detras
-    if find_hollow and not near_car:
-      print("SEARCHING POSIBLE FRONT CAR")
+
+      if count_front_free - count_back_free == 0:
+        print("SEARCHING POSIBLE HOLLOW")
+        for m in right_laser:
+          angle = math.degrees(m[1])
+          if 180 - gama > angle > gama:
+            aprox_measure = hollow_h/math.sin(math.radians(angle))
+          else:
+            aprox_measure = (hollow_w/2)/math.cos(math.radians(angle))
+            if aprox_measure <= 0:  
+              aprox_measure = hollow_h + aprox_measure
+              
+          if m[0] >= aprox_measure:
+            count_free_hollow += 1
+        
+        if count_free_hollow == 180:
+          CURRENT_STATE = SEARCHING_REFERENCE
+        
+        count_free_hollow = 0
+        
+      count_front_free = 0
+      count_back_free = 0
+    elif CURRENT_STATE == SEARCHING_REFERENCE:
+      print("SEARCHING REFERENCE")
       
       for i in range(2):
-        print(back_laser[-i-1][0])
-        if back_laser[-i-1][0] <= 5.0:
+        if back_laser[-i-1][0] <= 5.0: # 5.0
           count_near_car += 1
           
       for i in range(75, 106):
-        if right_laser[i][0] <= 4.0:
+        if right_laser[i][0] <= 5.0:
           count_near_car += 1
           
       if count_near_car >= 32:
-        near_car = True
         print("NEAR FRONT CAR FOUND")
+        CURRENT_STATE = PARKING
         HAL.setV(0)
-        time.sleep(10)
+        time.sleep(2)
         
       count_near_car = 0
+    elif CURRENT_STATE == PARKING:
+      print("PARKING")
+      
+      # TURN 45º
+      if PARKING_STATE == TURN:
+        print("YAW:", yaw_car, "DESIRE:", math.pi/4)
+        if not check_car_orientation(yaw_car, math.pi/4, 0.01):
+          W = (math.pi/4 - yaw_car)*0.3
+          V = -0.3
+        else:
+          PARKING_STATE = BACKWARD
+          W = 0.0
+          V = 0.0
+      elif PARKING_STATE == BACKWARD:
+        W = 0.0
+        V = -0.2
+        for i in range(15):
+          if data_BackLaser.maxRange == back_laser[i][0]:
+            count_backward += 1
+          print((back_laser[i][0], math.degrees(back_laser[i][1])))
         
-    if near_car:
-      V=0
+        if count_backward < 15:
+          V = 0.0
+          W = 0.0
+          PARKING_STATE = 0
+        
+        count_backward = 0
+        '''if not check_car_orientation(yaw_car, 0.0, 0.01):
+          W = (0.0 - yaw_car)*0.2
+          V = -0.3
+        else:
+          PARKING_STATE = 7
+          W = 0.0
+          V = 0.0'''
+      
+      
+    
+    
+    
+    
     
     HAL.setV(V)
-    HAL.setW(W*0)
+    HAL.setW(W)
+    
+    
+    
+    
+    
+    
     
     
     
