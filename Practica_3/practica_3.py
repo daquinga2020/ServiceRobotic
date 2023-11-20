@@ -68,6 +68,9 @@ hollow_w = H_car
 gama = math.atan(hollow_h/(hollow_w/2))
 gama = round(math.degrees(gama))
 
+count_align = 0
+count_align_left = 0
+
 count_front_free = 0
 count_back_free = 0
 count_free_hollow = 0
@@ -91,18 +94,61 @@ while True:
     
     
     # print("POSE:", (x_car, y_car, yaw_car))
-    
+    V = 0.5
     if CURRENT_STATE == ALIGNMENT:
+      # Comparar valores del laser derecho:
+      # Parte izq y der, deben tener más o menos los mismos valores.
+      # Parte izq más pequeña que parte der, coche inclinado a la izquierda
+      # Parte der más pequeña que parte izq, coche inclinado a la derecha
+      
+      # Comparar valores del laser frontal y trasero:
+      # Deben tener más o menos los mismos valores
+      # Frontal más pequeña que trasera, coche inclinado a la izquierda
+      # Trasero más pequeño que frontal, coche inclinado a la derecha
+      
+      # Frontal - 30º 5.2 min 45º 6.6 max
+      # Back - 140º 5.5 max 155º 5.0
       print("ALIGNMENT")
-      if not check_car_orientation(yaw_car, 0.0, 0.001):
+
+      for i in range(65, 95):
+        val_R = round(right_laser[i][0], 4)
+        val_L = round(right_laser[i+20][0], 4)
+        
+        # 10 False y 10 True
+        # print("\t R:", val_R, "L", val_L, "BOOL:", val_L > val_R, "-", val_L < val_R)
+        if val_L > val_R:
+          count_align += 1
+        else:
+          count_align -= 1
+        # time.sleep(0.5)
+      
+      # Inclinado Derecha, countL mayor que countR, giro izquierda, dejar margen de error 2
+      # print("\tCount R:", count_align)
+      # Si hay mas lecturas por el lado derecho, el coche esta mirando hacia la derecha
+      if count_align > 0:
+        W = -0.15 # 2.0
+      elif count_align < 0:
+        W = 0.15
+      
+      if abs(count_align) <= 2:
+        V = 0
+        W = 0
+        CURRENT_STATE = SEARCHING_HOLLOW
+        
+      count_align = 0
+      
+      '''if not check_car_orientation(yaw_car, 0.0, 0.001):
         W = (0.0 - yaw_car)
       else:
         CURRENT_STATE = SEARCHING_HOLLOW
         W = 0
-        V = 0.7
-
+        V = 0.7'''
+      
+      V = 0.07
+      # W = 0
     elif CURRENT_STATE == SEARCHING_HOLLOW:
       print("SEARCHING_HOLLOW")
+      
       for i in range(15): # Cambiando el parametro de range aumenta/disminuye el espacio
         if front_laser[i][0] >= 7.0:
           count_front_free += 1
