@@ -170,8 +170,6 @@ while True:
         
         if count_free_hollow == 180:
           CURRENT_STATE = SEARCHING_REFERENCE
-          HAL.setV(0)
-          time.sleep(10)
         
         count_free_hollow = 0
         
@@ -198,14 +196,10 @@ while True:
         
       print(ref_car_front, ref_car_back, any_ref)
       
-      # Looking for front car
-      if (not ref_car_front and ref_car_back) or not any_ref:
-        for i in range(30, 61):
-          if data_BackLaser.maxRange > back_laser[-i][0] > data_BackLaser.maxRange-2:
-            count_near_back_car += 1
+      # Qué hacer cuando no hay ninguna referencia
       
-      # Looking for back car
-      if (not ref_car_back and ref_car_front) or not any_ref:
+      # Looking for front car
+      if ref_car_front:
         for i in range(2):
           if back_laser[-i-1][0] <= 5.0: # 5.0
             count_near_front_car += 1
@@ -213,7 +207,13 @@ while True:
         for i in range(75, 106):
           if right_laser[i][0] <= 5.0:
             count_near_front_car += 1
-          
+    
+      # Looking for back car
+      if not ref_car_front and ref_car_back:
+        for i in range(30, 61):
+          if data_BackLaser.maxRange > back_laser[-i][0] > data_BackLaser.maxRange-2:
+            count_near_back_car += 1    
+      
       if count_near_front_car >= 32 or count_near_back_car >= 5:
         print("NEAR CAR FOUND")
         CURRENT_STATE = PARKING
@@ -229,10 +229,9 @@ while True:
       
       # TURN 45º
       if PARKING_STATE == TURN:
-        print("YAW:", yaw_car, "DESIRE:", math.pi/4)
-        
         # Primera Opcion: Utilizando la orientacion del coche
         angle_desire = math.pi/4 + start_angle
+        print("YAW CAR:", yaw_car, "DESIRE:", angle_desire)
         if not check_car_orientation(yaw_car, angle_desire, 0.01):
           W = (angle_desire - yaw_car)*0.3
           V = -0.3
@@ -263,16 +262,17 @@ while True:
         
         # Referencia en coche trasero, hasta que el principio del laser Trasero
         # detecte algo
-        for i in range(12):
-          if data_BackLaser.maxRange == back_laser[i][0]:
-            count_backward_bcklsr += 1
+        for i in range(14): # 12
+          if ref_car_back:
+            if data_BackLaser.maxRange > back_laser[i][0]:
+              count_backward_bcklsr += 1
           
           # Referencia en coche delantero
-          print(front_laser[i][0])
-          if 9.0 < front_laser[i][0] and front_laser[i][0] != data_FrontLaser.maxRange:
-            count_backward_frntlsr += 1
+          if not ref_car_back and ref_car_front:
+            if 9.0 < front_laser[i][0] and front_laser[i][0] != data_FrontLaser.maxRange:
+              count_backward_frntlsr += 1
 
-        if count_backward_frntlsr > 8 or count_backward_bcklsr < 12:
+        if count_backward_frntlsr > 8 or count_backward_bcklsr > 0: # 12
           V = 0.0
           PARKING_STATE = MOVE_INTO_HOLLOW
           # Quitar abajo
@@ -280,16 +280,18 @@ while True:
           print(count_backward_frntlsr, count_backward_bcklsr)
           time.sleep(5)
         
-        count_backward_bcklsr = 0
-        count_backward_frntlsr = 0
+        # count_backward_bcklsr = 0
+        # count_backward_frntlsr = 0
 
       elif PARKING_STATE == MOVE_INTO_HOLLOW:
         print("MOVE INTO HOLLOW")
         W = -0.08
         V = -0.3
         
+        count_backward_bcklsr = 0
+        
         for i in range(80, 101):
-          if back_laser[i][0] < 1.5:
+          if back_laser[i][0] < 0.8: # 1.5
             count_backward_bcklsr += 1
         
         angle_desire = 0.0 + start_angle
@@ -299,34 +301,39 @@ while True:
         else:
           W = 0.0
           PARKING_STATE = ADJUSTING
+          HAL.setV(0)
+          HAL.setW(0)
+          time.sleep(10)
         
         if count_backward_bcklsr != 0:
           V = 0.3
-        
-        # count_backward_bcklsr = 0
           
       elif PARKING_STATE == ADJUSTING:
+        print("ADJUSTING")
         V = 0.0
         sum_fr = 0
         sum_bck = 0
-        for i in range(85, 96):
+        
+        for i in range(87, 94):
           sum_bck = back_laser[i][0] + sum_bck
           sum_fr = front_laser[i][0] + sum_fr
           
-          if sum_fr == 11.0:
+          if sum_bck == 11.0 or sum_fr == 11.0:
+            sum_bck = 1111111111
             sum_fr = 1111111111
         
-        if sum_fr > 12:
+        if sum_bck > 100 or sum_fr > 100:
           PARKED = 9
         
         diff_frnt2bck = sum_fr/10 - sum_bck/10
         sense = (diff_frnt2bck)/abs(diff_frnt2bck)
         
-        V = 0.2*sense
         print(diff_frnt2bck)
         
         if abs(diff_frnt2bck) < 0.5:
-          PARKED = 9
+          PARKING_STATE = PARKED
+        else:
+          V = 0.2*sense
       
       elif PARKING_STATE == PARKED:
         print("PARKED")
