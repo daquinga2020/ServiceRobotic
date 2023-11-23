@@ -53,8 +53,10 @@ CURRENT_STATE = ALIGNMENT
 
 # PARKING STATES
 TURN = 5
-BACKWARD = 6
+BACKING_UP = 6
 MOVE_INTO_HOLLOW = 7
+ADJUSTING = 8
+PARKED = 9
 PARKING_STATE = TURN
 
 
@@ -69,6 +71,11 @@ hollow_w = H_car
 gama = math.atan(hollow_h/(hollow_w/2))
 gama = round(math.degrees(gama))
 
+# References
+ref_car_front = False
+ref_car_back = False
+any_ref = False
+
 count_align = 0
 count_align_left = 0
 
@@ -80,7 +87,8 @@ count_near_back_car = 0
 count_backward_bcklsr = 0
 count_backward_frntlsr = 0
 
-count_lateral_parking = 0
+# count_lateral_parking = 0
+same_distance = 0
 
 start_angle = 0
 
@@ -137,7 +145,7 @@ while True:
       count_align = 0
       
     elif CURRENT_STATE == SEARCHING_HOLLOW:
-      print("SEARCHING_HOLLOW")
+      print("SEARCHING HOLLOW")
       
       for i in range(15): # Cambiando el parametro de range aumenta/disminuye el espacio
         if front_laser[i][0] >= 7.0:
@@ -162,6 +170,8 @@ while True:
         
         if count_free_hollow == 180:
           CURRENT_STATE = SEARCHING_REFERENCE
+          HAL.setV(0)
+          time.sleep(10)
         
         count_free_hollow = 0
         
@@ -170,30 +180,42 @@ while True:
     elif CURRENT_STATE == SEARCHING_REFERENCE:
       print("SEARCHING REFERENCE")
       
-      # Búsqueda de coche trasero
-      for i in range(30, 61):
-        if data_BackLaser.maxRange > back_laser[-i][0] > data_BackLaser.maxRange-1:
-          count_near_back_car += 1
+      # Primero detectar si hay coche trasero o delantero para saber qué referencia tomar
+      if not ref_car_front and not ref_car_back and not any_ref: 
+        
+        count_ref_car_frnt = 0
+        count_ref_car_bck = 0
+        for i in range(15, 66):
+          print("FR:", front_laser[i][0], "BCK:", back_laser[-i][0])
+          if front_laser[i][0] < 6.0:
+            count_ref_car_frnt += 1
+          if back_laser[-i][0] < 6.0:
+            count_ref_car_bck += 1
+        
+        ref_car_front = count_ref_car_frnt > 10
+        ref_car_back = count_ref_car_bck > 10
+        any_ref = not ref_car_front and not ref_car_back
+        
+      print(ref_car_front, ref_car_back, any_ref)
       
-      '''if count_near_back_car >= 5:
-        print("NEAR BACK CAR FOUND")
-        CURRENT_STATE = PARKING
-        V = 0.0
-        # Quitar abajo
-        HAL.setV(0)
-        time.sleep(2)'''
+      # Looking for front car
+      if (not ref_car_front and ref_car_back) or not any_ref:
+        for i in range(30, 61):
+          if data_BackLaser.maxRange > back_laser[-i][0] > data_BackLaser.maxRange-2:
+            count_near_back_car += 1
       
-      # Búsqueda de coche delantero
-      for i in range(2):
-        if back_laser[-i-1][0] <= 5.0: # 5.0
-          count_near_front_car += 1
-          
-      for i in range(75, 106):
-        if right_laser[i][0] <= 5.0:
-          count_near_front_car += 1
+      # Looking for back car
+      if (not ref_car_back and ref_car_front) or not any_ref:
+        for i in range(2):
+          if back_laser[-i-1][0] <= 5.0: # 5.0
+            count_near_front_car += 1
+            
+        for i in range(75, 106):
+          if right_laser[i][0] <= 5.0:
+            count_near_front_car += 1
           
       if count_near_front_car >= 32 or count_near_back_car >= 5:
-        print("NEAR FRONT CAR FOUND")
+        print("NEAR CAR FOUND")
         CURRENT_STATE = PARKING
         V = 0.0
         # Quitar abajo
@@ -207,7 +229,7 @@ while True:
       
       # TURN 45º
       if PARKING_STATE == TURN:
-        '''print("YAW:", yaw_car, "DESIRE:", math.pi/4)
+        print("YAW:", yaw_car, "DESIRE:", math.pi/4)
         
         # Primera Opcion: Utilizando la orientacion del coche
         angle_desire = math.pi/4 + start_angle
@@ -215,10 +237,10 @@ while True:
           W = (angle_desire - yaw_car)*0.3
           V = -0.3
         else:
-          # PARKING_STATE = BACKWARD
+          PARKING_STATE = BACKING_UP
           W = 0.0
-          V = 0.0'''
-          
+          V = 0.0
+        '''  
         # Segunda opcion: Utilizando las medidas de los laseres.
         # Girar hasta que en el laser derecho se hallen medidas muy bajas
         V = -0.45 # -0.4
@@ -233,9 +255,10 @@ while True:
           V = 0.0
           PARKING_STATE = BACKWARD
           
-        count_lateral_parking = 0
+        count_lateral_parking = 0'''
         
-      elif PARKING_STATE == BACKWARD:
+      elif PARKING_STATE == BACKING_UP:
+        print("BACKING UP")
         V = -0.2
         
         # Referencia en coche trasero, hasta que el principio del laser Trasero
@@ -245,7 +268,8 @@ while True:
             count_backward_bcklsr += 1
           
           # Referencia en coche delantero
-          if 9.8 > front_laser[i][0]:
+          print(front_laser[i][0])
+          if 9.0 < front_laser[i][0] and front_laser[i][0] != data_FrontLaser.maxRange:
             count_backward_frntlsr += 1
 
         if count_backward_frntlsr > 8 or count_backward_bcklsr < 12:
@@ -253,22 +277,60 @@ while True:
           PARKING_STATE = MOVE_INTO_HOLLOW
           # Quitar abajo
           HAL.setV(0)
-          time.sleep(2)
+          print(count_backward_frntlsr, count_backward_bcklsr)
+          time.sleep(5)
         
         count_backward_bcklsr = 0
         count_backward_frntlsr = 0
 
-        '''if not check_car_orientation(yaw_car, 0.0, 0.01):
-          W = (0.0 - yaw_car)*0.2
-          V = -0.3
-        else:
-          PARKING_STATE = 7
-          W = 0.0
-          V = 0.0'''
       elif PARKING_STATE == MOVE_INTO_HOLLOW:
+        print("MOVE INTO HOLLOW")
         W = -0.08
-        V = -0.25
+        V = -0.3
+        
+        for i in range(80, 101):
+          if back_laser[i][0] < 1.5:
+            count_backward_bcklsr += 1
+        
+        angle_desire = 0.0 + start_angle
+        print("YAW:", yaw_car, "DESIRE:", angle_desire)
+        if not check_car_orientation(yaw_car, 0.0, 0.05):
+          W = (angle_desire - yaw_car)*0.3
+        else:
+          W = 0.0
+          PARKING_STATE = ADJUSTING
+        
+        if count_backward_bcklsr != 0:
+          V = 0.3
+        
+        # count_backward_bcklsr = 0
+          
+      elif PARKING_STATE == ADJUSTING:
+        V = 0.0
+        sum_fr = 0
+        sum_bck = 0
+        for i in range(85, 96):
+          sum_bck = back_laser[i][0] + sum_bck
+          sum_fr = front_laser[i][0] + sum_fr
+          
+          if sum_fr == 11.0:
+            sum_fr = 1111111111
+        
+        if sum_fr > 12:
+          PARKED = 9
+        
+        diff_frnt2bck = sum_fr/10 - sum_bck/10
+        sense = (diff_frnt2bck)/abs(diff_frnt2bck)
+        
+        V = 0.2*sense
+        print(diff_frnt2bck)
+        
+        if abs(diff_frnt2bck) < 0.5:
+          PARKED = 9
       
+      elif PARKING_STATE == PARKED:
+        print("PARKED")
+        V = 0
     
     
     
