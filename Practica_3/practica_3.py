@@ -29,18 +29,6 @@ def parse_data_laser(data_laser):
 def check_car_orientation(yaw_robot, yaw_desired, err):
   return yaw_robot >= yaw_desired-err and yaw_robot <= yaw_desired+err
 
-'''def check_separation_car(laser_values):
-  separation = False
-  count = 0
-  for measure in laser_values:
-    dist = measure[0]
-    degree = math.degrees(measure[1])
-    if degree >= 65 and degree <= 100:
-      if dist  >= 3.2 and dist <= 3.8:
-        count += 1
-  
-  return count >= 30'''
-
 time.sleep(2)
 
 # Estados
@@ -239,30 +227,14 @@ while True:
           PARKING_STATE = BACKING_UP
           W = 0.0
           V = 0.0
-        '''  
-        # Segunda opcion: Utilizando las medidas de los laseres.
-        # Girar hasta que en el laser derecho se hallen medidas muy bajas
-        V = -0.45 # -0.4
-        W = 0.1
-        
-        for i in range(30, 70):
-          if right_laser[i][0] < 2.5:
-            count_lateral_parking += 1
-          
-        if count_lateral_parking >= 30:
-          W = 0.0
-          V = 0.0
-          PARKING_STATE = BACKWARD
-          
-        count_lateral_parking = 0'''
         
       elif PARKING_STATE == BACKING_UP:
         print("BACKING UP")
-        V = -0.2
+        V = -0.25
         
         # Referencia en coche trasero, hasta que el principio del laser Trasero
         # detecte algo
-        for i in range(14): # 12
+        for i in range(11): # 12
           if ref_car_back:
             if data_BackLaser.maxRange > back_laser[i][0]:
               count_backward_bcklsr += 1
@@ -285,7 +257,7 @@ while True:
 
       elif PARKING_STATE == MOVE_INTO_HOLLOW:
         print("MOVE INTO HOLLOW")
-        W = -0.08
+        
         V = -0.3
         
         count_backward_bcklsr = 0
@@ -318,15 +290,18 @@ while True:
           sum_bck = back_laser[i][0] + sum_bck
           sum_fr = front_laser[i][0] + sum_fr
           
-          if sum_bck == 11.0 or sum_fr == 11.0:
+          if back_laser[i][0] >= 7.0 or front_laser[i][0] >= 7.0:
             sum_bck = 1111111111
             sum_fr = 1111111111
         
-        if sum_bck > 100 or sum_fr > 100:
+        if sum_bck > 1000 or sum_fr > 1000:
           PARKED = 9
         
-        diff_frnt2bck = sum_fr/10 - sum_bck/10
-        sense = (diff_frnt2bck)/abs(diff_frnt2bck)
+        diff_frnt2bck = sum_fr/6 - sum_bck/6
+        if diff_frnt2bck != 0:
+          sense = (diff_frnt2bck)/abs(diff_frnt2bck)
+        else:
+          sense = 1
         
         print(diff_frnt2bck)
         
