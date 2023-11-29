@@ -107,33 +107,29 @@ while True:
         # print("\t", right_laser[i][0], math.degrees(right_laser[i][1]))
         values_align.append(right_laser[i][0])
         degrees_align.append(math.degrees(right_laser[i][1]))
-        count_align = 0
       else:
         # Si no detecto nada en el centro del lateral, guardar los arrays y usarlos cuando no se detecte nada
         count_align_left += 1
-          # break
-        if 120 >= i >= 100:
+        if 120 > i >= 100:
           count_align += 1
     
     safe_values_align = []
     safe_degrees_align = []
       
-    if count_align_left >= 89:
+    if count_align >= 18:# 28:
+      count_align = 0 # MOD
+      values_align = safe_values_align
+      degrees_align = safe_degrees_align
+      print("SIN COCHE LATERAL", count_align)
+    else:
+      count_align = 0
+    
+    if count_align_left >= 75: # 89
+      print("GUARDO LISTAS PASADAS")
       count_align_left = 0
       safe_values_align = values_align
       safe_degrees_align = degrees_align
     
-    if count_align >= 38:# 28:
-      values_align = safe_values_align
-      degrees_align = safe_degrees_align
-      print("SIN COCHE LATERAL", count_align)
-      '''for i in range(45):
-        if front_laser[i][0] != data_FrontLaser.maxRange:
-          values_align.append(front_laser[i][0])
-          degrees_align.append(math.degrees(front_laser[i][1]))
-        if back_laser[-i-1][0] != data_BackLaser.maxRange:
-          values_align.append(back_laser[-i-1][0])
-          degrees_align.append(math.degrees(back_laser[-i-1][1]))'''
     
     count_align_left = 0
     

@@ -64,7 +64,8 @@ ref_car_front = False
 ref_car_back = False
 any_ref = False
 
-# count_align_left = 0
+count_align_left = 0
+count_align = 0
 
 count_front_free = 0
 count_back_free = 0
@@ -96,10 +97,62 @@ while True:
     V = 0.55
     W = 0.0
     
+    # Fase de pruebas
+    if CURRENT_STATE != PARKING:
+      values_align = []
+      degrees_align = []
+
+      for i in range(45, 135):
+        if right_laser[i][0] != data_BackLaser.maxRange:
+          values_align.append(right_laser[i][0])
+          degrees_align.append(math.degrees(right_laser[i][1]))
+        else:
+          # Si no detecto nada en el centro del lateral, guardar los arrays y usarlos cuando no se detecte nada
+          count_align_left += 1
+          if 120 > i >= 100:
+            count_align += 1
+      
+      safe_values_align = []
+      safe_degrees_align = []
+        
+      if count_align >= 18:# 28:
+        count_align = 0 # MOD
+        values_align = safe_values_align
+        degrees_align = safe_degrees_align
+        print("SIN COCHE LATERAL", count_align)
+      else:
+        count_align = 0
+      
+      if count_align_left >= 75: # 89
+        print("GUARDO LISTAS PASADAS")
+        count_align_left = 0
+        safe_values_align = values_align
+        safe_degrees_align = degrees_align
+      
+      
+      count_align_left = 0
+      
+      # Encuentra la recta que mejor se ajusta utilizando el método de mínimos cuadrados
+      A = np.vstack([degrees_align, np.ones(len(degrees_align))]).T
+      m, c = np.linalg.lstsq(A, values_align, rcond=None)[0]
+      
+      # Calcula el ángulo que forma la recta con el eje Y
+      angle_radians = np.arctan(m)
+      angle_degrees = np.degrees(angle_radians)
+      # print("\tANGLE:", angle_degrees, "YAW:", yaw_car)
+      # time.sleep(5)
+      
+      if 0.001 > angle_degrees > -0.001:
+        W = 0.0
+      else:
+        W = (0.0 - angle_radians)*10.5  
+    # Fin de fase de pruebas
+    ########################
+    
+    
     if CURRENT_STATE == SEARCHING_HOLLOW:
       print("SEARCHING HOLLOW")
-      
-      for i in range(15): # Cambiando el parametro de range aumenta/disminuye el espacio
+      for i in range(5): # Cambiando el parametro de range aumenta/disminuye el espacio
         if front_laser[i][0] >= 7.0:
           count_front_free += 1
         
@@ -107,6 +160,7 @@ while True:
           count_back_free += 1
 
       if count_front_free - count_back_free == 0:
+        V = 0.4
         print("SEARCHING POSIBLE HOLLOW")
         for m in right_laser:
           angle = math.degrees(m[1])
@@ -119,9 +173,11 @@ while True:
               
           if m[0] >= aprox_measure:
             count_free_hollow += 1
-        
+            
+        print("HOLLOW:", count_free_hollow)
         if count_free_hollow == 180:
           HAL.setV(0)
+          HAL.setW(0)
           print("HOLLOW FOUNDED")
           time.sleep(5)
           CURRENT_STATE = SEARCHING_REFERENCE
@@ -132,10 +188,9 @@ while True:
       count_back_free = 0
     elif CURRENT_STATE == SEARCHING_REFERENCE:
       print("SEARCHING REFERENCE")
-      V = 0.4
+      # V = 0.4
       # Primero detectar si hay coche trasero o delantero para saber qué referencia tomar
       if not ref_car_front and not ref_car_back and not any_ref: 
-        
         count_ref_car_frnt = 0
         count_ref_car_bck = 0
         for i in range(15, 66):
