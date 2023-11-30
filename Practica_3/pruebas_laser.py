@@ -167,7 +167,7 @@ coordenadas = [
     (4.025326728820801, 149.0)
 ]
 
-data = np.array(coordenadas)
+data = np.array([coordenadas])
 
 # Extrae las coordenadas x e y de los datos
 x = data[:, 0]
