@@ -167,26 +167,26 @@ coordenadas = [
     (4.025326728820801, 149.0)
 ]
 
-data = np.array([coordenadas])
+data = np.array(coordenadas)
 
 # Extrae las coordenadas x e y de los datos
 x = data[:, 0]
 y = data[:, 1]
-
+print(x)
 # Encuentra la recta que mejor se ajusta utilizando el método de mínimos cuadrados
-A = np.vstack([x, np.ones(len(x))]).T
-m, c = np.linalg.lstsq(A, y, rcond=None)[0]
+A = np.vstack([y, np.ones(len(y))]).T
+m, c = np.linalg.lstsq(A, x, rcond=None)[0]
 
 # Calcula el ángulo que forma la recta con el eje Y
 angle_radians = np.arctan(m)
 angle_degrees = np.degrees(angle_radians)
 
 # Grafica los puntos y la recta de ajuste
-plt.scatter(x, y, marker='o', label='Puntos')
-plt.plot(x, m*x + c, color='red', label='Recta de ajuste')
+plt.scatter(y, x, marker='o', label='Puntos')
+plt.plot(y, m*y + c, color='red', label='Recta de ajuste')
 
 # Muestra el ángulo en el título
-plt.title(f'Ángulo con el eje Y: {angle_degrees:.2f} grados')
+plt.title(f'Ángulo con el eje Xautilu: {angle_degrees:.2f} grados')
 
 # Muestra la leyenda y el gráfico
 plt.legend()
