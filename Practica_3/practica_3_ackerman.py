@@ -99,7 +99,7 @@ while True:
     right_laser = parse_data_laser(data_RightLaser)
     back_laser = parse_data_laser(data_BackLaser)
     
-    V = 0.65
+    V = 0.6
     W = 0.0
     
     if CURRENT_STATE != PARKING:
@@ -123,8 +123,7 @@ while True:
 
         no_sidecar = 0
         
-        # Si funciona igual comentando las listas safe, borrar
-        if posible_no_car >= 75: # 89
+        if posible_no_car >= 75:
           print("SAVING LAST LIST")
           posible_no_car = 0
           safe_values_align = values_align
@@ -133,7 +132,7 @@ while True:
 
         posible_no_car = 0
       else:
-        print("USING LAST LIST WITH STREET DIRECTION")
+        print("USING LAST LIST WITH STREET DIRECTION", len(street_direction[0]))
         values_align = street_direction[0]
         degrees_align = street_direction[1]
       
@@ -153,7 +152,7 @@ while True:
     if CURRENT_STATE == SEARCHING_HOLLOW:
       print("SEARCHING HOLLOW")
       
-      for i in range(3): # Cambiando el parametro de range aumenta/disminuye el espacio
+      for i in range(3):
         if front_laser[i][0] >= 7.0:
           count_front_free += 1
         
@@ -216,7 +215,7 @@ while True:
           if right_laser[i][0] <= 5.0:
             count_near_front_car += 1
     
-      # Looking for back car // Falta revisar si coge bien la referencia trasera
+      # Looking for back car
       if not ref_car_front and ref_car_back:
         for i in range(30, 61):
           if data_BackLaser.maxRange > back_laser[-i][0] > data_BackLaser.maxRange-2:
@@ -252,12 +251,12 @@ while True:
         V = -0.35
         
         # Reference in rear car, until the rear laser principle detects something.
-        for i in range(40): # 12 # 11
+        for i in range(40):
           if ref_car_back:
             if data_BackLaser.maxRange > back_laser[i][0]:
               count_backward_bcklsr += 1
           
-          # Reference in front car//COMPROBAR
+          # Reference in front car
           if not ref_car_back and ref_car_front:
             if 9.0 < front_laser[i][0] and front_laser[i][0] != data_FrontLaser.maxRange:
               count_backward_frntlsr += 1
@@ -273,23 +272,18 @@ while True:
         count_backward_bcklsr = 0
         
         # Searching the back laser
-        for i in range(20): # 12
-          if back_laser[i][0] < 1.0: # 0.8
+        for i in range(20):
+          if back_laser[i][0] < 1.0:
             count_backward_bcklsr += 1
-        
-        # Si en el principio del laser traser no se detecta nada,
-        # retroceder hasta que el centro del laser trasero detecte
-        # un coche lo suficientemente cerca.
+    
         if count_backward_bcklsr == 0:
-          for i in range(87, 93): # 6
+          for i in range(87, 93):
             if back_laser[i][0] < 0.8:
               count_backward_bcklsr += 1
         
         angle_desire = start_angle
         print("\tYAW:", yaw_car, "DESIRE:", angle_desire)
         
-        # Si se alcanza la orientacion incial sin que se haya detectado ningun coche trasero
-        # cercano, el coche esta aparcado
         if not check_car_orientation(yaw_car, start_angle, 0.03):
           W = -100
         else:
@@ -297,7 +291,6 @@ while True:
           W = 0.0
           PARKING_STATE = PARKED
         
-        # Si se detecta un coche trasero cercano, cambio de estado a maniobrar
         if count_backward_bcklsr >= 2:
           PARKING_STATE = FORWARD
           V = 0.23
@@ -307,11 +300,11 @@ while True:
         V = 0.35
         W = -100
         
-        # Searching the front laser // Revisar si quitar alguna condicion
-        for i in range(88, 92): # 4
-          if front_laser[i][0] < 0.5: # 0.8
+        # Searching the front laser
+        for i in range(88, 92):
+          if front_laser[i][0] < 0.5:
             count_forward_frntlsr += 1
-          elif count_forward_frntlsr != 0 and front_laser[i][0] >= 0.4: # 0.8
+          elif count_forward_frntlsr != 0 and front_laser[i][0] >= 0.4:
             count_forward_frntlsr = -1
             break
             
@@ -329,8 +322,8 @@ while True:
         count_backward_bcklsr = 0
         
         # Searching the back laser
-        for i in range(88, 92): # 4
-          if back_laser[i][0] < 0.75: # 0.8
+        for i in range(88, 92): 
+          if back_laser[i][0] < 0.75:
             count_backward_bcklsr += 1
             break
         
